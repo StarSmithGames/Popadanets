@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2890feebce424229be91f1f4a2d77f05, type: 3}
+  m_Name: InputManagerInstaller
+  m_EditorClassIdentifier: 
+  Settings:
+    Left:
+      Code: 0
+    Right:
+      Code: 0
+    Forward:
+      Code: 0
+    Backward:
+      Code: 0
+    Jump:
+      Code: 32
