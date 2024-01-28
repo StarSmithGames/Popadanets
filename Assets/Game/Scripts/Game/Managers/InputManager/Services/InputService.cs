@@ -7,24 +7,31 @@ namespace Game.Managers.InputManager
     {
         public event Action OnKeyJumpDowned;
         
-        public Vector3 InputMovement => new Vector3( Input.GetAxis( InputParams.HORIZONTAL ), 0, Input.GetAxis( InputParams.VERTICAL ) );
+        public Vector3 InputMovement => new( HorizontalMovement.GetAxis(), 0, VerticalMovement.GetAxis() );
+        
+        public readonly InputAxis HorizontalMovement;
+        public readonly InputAxis VerticalMovement;
 
+        private InputSettings _settings;
         private InputManager _inputManager;
         
         public InputService(
+            InputSettings settings,
             InputManager inputManager
             )
         {
+            _settings = settings ?? throw new ArgumentNullException( nameof(settings) );
             _inputManager = inputManager ?? throw new ArgumentNullException( nameof(inputManager) );
 
+            HorizontalMovement = new( _settings.MovementBind.Horizontal, false );
+            VerticalMovement = new( _settings.MovementBind.Vertical, false );
+            
             _inputManager.OnKeyDown += KeyDownedHandler;
         }
 
-        private void KeyDownedHandler( KeyCode code )
+        private void KeyDownedHandler( KeyCodeBind bind )
         {
-            Debug.LogError( code );
-            
-            if ( code != KeyCode.Space ) return;
+            if ( bind != _settings.MovementBind.Jump ) return;
             
             OnKeyJumpDowned?.Invoke();
         }

@@ -3,25 +3,21 @@ using StarSmithGames.Core.Utils;
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using UnityEngine;
 
 namespace Game.Managers.InputManager
 {
     public sealed class InputManager
     {
-        public event Action< KeyCode > OnKeyDown;
-        public event Action< KeyCode > OnKeyUp;
-
-        private List< KeyCodeBind > _binds;
+        public event Action< KeyCodeBind > OnKeyDown;
         
-        private InputSettings _settings;
+        private readonly List< KeyCodeBind > _binds;
+        private readonly InputSettings _settings;
         
         public InputManager(
             InputSettings settings
             )
         {
             _settings = settings ?? throw new ArgumentNullException( nameof(settings) );
-
             _binds = _settings.GetKeys();
             
             Tick( ThreadingUtils.QuitToken ).Forget();
@@ -34,23 +30,20 @@ namespace Game.Managers.InputManager
             {
                 for ( int i = 0; i < _binds.Count; i++ )
                 {
-                    CheckKeyCode( _binds[i].Code );
+                    CheckKeyCode( _binds[i] );
                 }
                 
                 isCanceled = await UniTask.Yield( PlayerLoopTiming.Update, token ).SuppressCancellationThrow();
             }
         }
-
-        private void CheckKeyCode( KeyCode code )
+        
+        private void CheckKeyCode( KeyCodeBind bind )
         {
-            if ( Input.GetKeyDown( code ) )
+            if ( bind.Codes.Count == 0 ) return;
+
+            if ( Inout.GetKeyDown( bind ) )
             {
-                OnKeyDown?.Invoke( code );
-            }
-            
-            if( Input.GetKeyUp( code ) )
-            {
-                OnKeyUp?.Invoke( code );
+                OnKeyDown?.Invoke( bind );
             }
         }
     }

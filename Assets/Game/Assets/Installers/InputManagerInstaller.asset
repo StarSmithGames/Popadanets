@@ -13,13 +13,34 @@ MonoBehaviour:
   m_Name: InputManagerInstaller
   m_EditorClassIdentifier: 
   Settings:
-    Left:
-      Code: 0
-    Right:
-      Code: 0
-    Forward:
-      Code: 0
-    Backward:
-      Code: 0
-    Jump:
-      Code: 32
+    MovementBind:
+      Horizontal:
+        Id: Horizontal
+        Positive:
+          Id: Right
+          Codes: 6400000013010000
+        Negative:
+          Id: Left
+          Codes: 6100000014010000
+      Vertical:
+        Id: Vertical
+        Positive:
+          Id: Up
+          Codes: 7700000011010000
+        Negative:
+          Id: Down
+          Codes: 7300000012010000
+      Jump:
+        Id: Jump
+        Codes: 20000000
+    AllBindings:
+    - Id: Right
+      Codes: 6400000013010000
+    - Id: Left
+      Codes: 6100000014010000
+    - Id: Up
+      Codes: 7700000011010000
+    - Id: Down
+      Codes: 7300000012010000
+    - Id: Jump
+      Codes: 20000000

@@ -10,8 +10,7 @@ namespace Game.Managers.InputManager
         
         public override void InstallBindings()
         {
-            Container.BindInstance( Settings ).WhenInjectedInto< InputManager >();
-
+            Container.BindInstance( Settings );
             Container.BindInterfacesAndSelfTo< InputService >().AsSingle();
             Container.BindInterfacesAndSelfTo< InputManager >().AsSingle().NonLazy();
         }

@@ -42,6 +42,8 @@ namespace Game.Entities.Character.Controller
         
         private void Movement( Vector3 input )
         {
+            Debug.LogError( input );
+            
             _lastVelocity = CalculateMovementVelocity( input );
             _characterController.Move( _lastVelocity * _settings.movementSpeed * Time.deltaTime );
 
