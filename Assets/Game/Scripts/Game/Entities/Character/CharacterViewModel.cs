@@ -33,6 +33,7 @@ namespace Game.Entities.Character
             
             _tickCancellation = new();
             Tick().Forget();
+            FixedTick().Forget();
 
             _inputService.OnKeyJumpDowned += KeyJumpDownedHandler;
         }
@@ -63,9 +64,19 @@ namespace Game.Entities.Character
             }
         }
 
+        private async UniTask FixedTick()
+        {
+            bool isCanceled = false;
+            while ( !isCanceled )
+            {
+                _characterController.FixedTick();
+                
+                isCanceled = await UniTask.Yield( PlayerLoopTiming.FixedUpdate, _tickCancellation.Token ).SuppressCancellationThrow();
+            }
+        }
+
         private void KeyJumpDownedHandler()
         {
-            Debug.LogError( "HERER" );
             _characterController.Jump();
         }
     }

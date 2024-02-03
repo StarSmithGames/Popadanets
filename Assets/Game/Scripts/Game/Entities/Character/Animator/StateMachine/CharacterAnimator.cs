@@ -38,7 +38,7 @@ namespace Game.Entities.Character
 
         public void Tick()
         {
-            Vector3 velocity = _controller.Velocity;
+            Vector3 velocity = _controller.VelocityNormalized;
 
             bool isIdle = velocity.magnitude == 0;
 

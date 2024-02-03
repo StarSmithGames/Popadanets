@@ -33,14 +33,3 @@ MonoBehaviour:
       Jump:
         Id: Jump
         Codes: 20000000
-    AllBindings:
-    - Id: Right
-      Codes: 6400000013010000
-    - Id: Left
-      Codes: 6100000014010000
-    - Id: Up
-      Codes: 7700000011010000
-    - Id: Down
-      Codes: 7300000012010000
-    - Id: Jump
-      Codes: 20000000

@@ -11,7 +11,7 @@ namespace Game.Entities.Character.Controller
         public bool IsFreezed { get; private set; } = false;
         public bool IsWaitAnimation { get; private set; } = false;
 
-        public Vector3 Velocity => _lastVelocity;
+        public Vector3 VelocityNormalized => _lastVelocity / _settings.movementSpeed;
         public Vector3 VelocityHorizontal => VectorMath.RemoveDotVector( _lastVelocity, _root.up );
         public Vector3 VelocityVertical => _lastVelocity - VelocityHorizontal;
         
@@ -37,25 +37,17 @@ namespace Game.Entities.Character.Controller
         public void Tick( Vector3 input )
         {
             Movement( input );
+        }
+
+        public void FixedTick()
+        {
             ApplyGravity();
         }
         
         private void Movement( Vector3 input )
         {
-            Debug.LogError( input );
-            
-            _lastVelocity = CalculateMovementVelocity( input );
-            _characterController.Move( _lastVelocity * _settings.movementSpeed * Time.deltaTime );
-
-            Vector3 CalculateMovementVelocity( Vector3 input )
-            {
-                if (!IsCanMove || IsWaitAnimation) return Vector3.zero;
-            
-                // direction = VectorMath.RemoveDotVector(direction, _root.up);//?
-                Vector3 velocity = input.normalized * _settings.movementSpeed;
-
-                return velocity.normalized;
-            }
+            _characterController.Move( input * _settings.movementSpeed * Time.deltaTime );
+            _lastVelocity = _characterController.velocity;
         }
         
         private void ApplyGravity()
@@ -65,16 +57,15 @@ namespace Game.Entities.Character.Controller
                 _lastGravityVelocity.y = 0f;
             }
             
-            _lastGravityVelocity.y += _settings.gravity * Time.deltaTime;
-            _characterController.Move( _lastGravityVelocity * Time.deltaTime );
+            _lastGravityVelocity.y += _settings.gravity * Time.fixedDeltaTime;
+            _characterController.Move( _lastGravityVelocity );
         }
 
         public void Jump()
         {
-            // if ( IsGrounded )
-            {
-                _lastGravityVelocity.y += Mathf.Sqrt( _settings.jumpHeight * _settings.gravity );
-            }
+            if ( !IsGrounded ) return;
+
+            _lastGravityVelocity.y += _settings.jumpHeight;
         }
         
         public float GetVertical()

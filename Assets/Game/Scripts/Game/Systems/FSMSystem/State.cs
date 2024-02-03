@@ -1,4 +1,5 @@
 using System;
+using UnityEngine;
 
 namespace Game.Systems.FSMSystem
 {
@@ -15,7 +16,7 @@ namespace Game.Systems.FSMSystem
         {
             _stateMachine = stateMachine;
         }
-
+        
         public virtual void Enter()
         {
             OnEntered?.Invoke();
