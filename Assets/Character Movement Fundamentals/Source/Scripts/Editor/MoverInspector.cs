@@ -67,7 +67,6 @@ namespace CMF
 					GUILayout.Label("Number of rays = " + _previewPositions.Length, EditorStyles.centeredGreyMiniLabel );
 			}
 		}
-
 		
 	}
 }

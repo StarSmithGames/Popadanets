@@ -2,7 +2,7 @@ using StarSmithGames.Core.Utils;
 using System;
 using UnityEngine;
 
-namespace Game.Entities.Character.Controller
+namespace Game.Entities.Character
 {
     public sealed class CharacterController3D
     {

@@ -1,5 +1,4 @@
 using Cysharp.Threading.Tasks;
-using Game.Entities.Character.Controller;
 using Game.Managers.InputManager;
 using System;
 using System.Threading;
