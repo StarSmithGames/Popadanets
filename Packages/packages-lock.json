@@ -8,7 +8,7 @@
       "hash": "64792b672d35e43b3412fc74861f8bdbf41e3a6f"
     },
     "com.starsmithgames.core": {
-      "version": "0.2.9",
+      "version": "0.3.0",
       "depth": 0,
       "source": "registry",
       "dependencies": {
@@ -17,7 +17,7 @@
       "url": "https://registry.npmjs.org"
     },
     "com.starsmithgames.go": {
-      "version": "0.5.0",
+      "version": "0.5.1",
       "depth": 0,
       "source": "registry",
       "dependencies": {
@@ -26,7 +26,7 @@
       "url": "https://registry.npmjs.org"
     },
     "com.starsmithgames.ioc": {
-      "version": "1.0.1",
+      "version": "1.0.2",
       "depth": 0,
       "source": "registry",
       "dependencies": {},
