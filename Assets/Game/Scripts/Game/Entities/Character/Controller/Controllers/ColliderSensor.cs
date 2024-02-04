@@ -27,6 +27,10 @@ namespace Game.Entities.Character
 		public int sensorArrayRayCount = 6;
 		public bool sensorArrayRowsAreOffset = false;
 		
+		[Header("Other Options :")]
+		//Acceptable slope angle limit;
+		public float slopeLimit = 80f;
+		
 		[Header("Variables :")]
 		public Transform targetTransform;
 		public Rigidbody rigidbody;
@@ -193,6 +197,15 @@ namespace Game.Entities.Character
 
 			//Set flags for ground detection;
 			IsGrounded = true;
+		}
+		
+		//Returns true if angle between controller and ground normal is too big (> slope limit), i.e. ground is too steep;
+		public bool IsGroundTooSteep()
+		{
+			if ( !IsGrounded )
+				return true;
+
+			return ( Vector3.Angle( Sensor.GetNormal(), targetTransform.up ) > slopeLimit );
 		}
 		
 		#region Sets
