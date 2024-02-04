@@ -8,5 +8,8 @@ namespace Game.Entities.Character
         public Transform Root;
         public Transform RootModel;
         public Transform CameraModel;
+        [ Space ]
+        public HumanoidArmsRig ArmsRig;
+        public HumanoidLegsRig LegsRig;
     }
 }
