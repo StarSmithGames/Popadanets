@@ -12,6 +12,8 @@ namespace Game.Entities.Character
 		[Header("Options :")]
 		[Range(0f, 1f)]
 		public float stepHeightRatio = 0.25f;
+		//Acceptable slope angle limit;
+		public float slopeLimit = 80f;
 		[Header("Collider Options :")]
 		public float colliderHeight = 2f;
 		public float colliderThickness = 1f;
@@ -27,10 +29,6 @@ namespace Game.Entities.Character
 		public int sensorArrayRayCount = 6;
 		public bool sensorArrayRowsAreOffset = false;
 		
-		[Header("Other Options :")]
-		//Acceptable slope angle limit;
-		public float slopeLimit = 80f;
-		
 		[Header("Variables :")]
 		public Transform targetTransform;
 		public Rigidbody rigidbody;
@@ -39,13 +37,14 @@ namespace Game.Entities.Character
 
 		protected float _sensorRadiusModifier = 0.8f;
 		
+		//Current upwards (or downwards) velocity necessary to keep the correct distance to the ground;
+		private Vector3 _currentGroundAdjustmentVelocity = Vector3.zero;
+		
 		//Sensor range variables;
 		private bool _isUsingExtendedSensorRange  = true;
 		private float _baseSensorRange = 0f;
 
-
-
-		private void Awake()
+		public void Initialize()
 		{
 			//Freeze rigidbody rotation and disable rigidbody gravity;
 			rigidbody.freezeRotation = true;
@@ -162,21 +161,15 @@ namespace Game.Entities.Character
 			CurrentLayer = _objectLayer;
 		}
 
-		public float GetGroundAdjustmentDistance()
-		{
-			float _distance = Sensor.GetDistance();
-			float _upperLimit = ((colliderHeight * targetTransform.localScale.x) * (1f - stepHeightRatio)) * 0.5f;
-			float _middle = _upperLimit + (colliderHeight * targetTransform.localScale.x) * stepHeightRatio;
-			float _distanceToGo = _middle - _distance;
 
-			return _distanceToGo;
-		}
 
 		//Check if mover is grounded;
 		//Store all relevant collision information for later;
 		//Calculate necessary adjustment velocity to keep the correct distance to the ground;
 		public void CheckForGround()
 		{
+			_currentGroundAdjustmentVelocity = Vector3.zero;
+			
 			//Check if object layer has been changed since last frame;
 			//If so, recalculate sensor layer mask;
 			if ( CurrentLayer != gameObject.layer )
@@ -197,6 +190,18 @@ namespace Game.Entities.Character
 
 			//Set flags for ground detection;
 			IsGrounded = true;
+			
+			_currentGroundAdjustmentVelocity = GetGroundAdjustmentDistance();
+		}
+		
+		private Vector3 GetGroundAdjustmentDistance()
+		{
+			float _distance = Sensor.GetDistance();
+			float _upperLimit = ((colliderHeight * targetTransform.localScale.x) * (1f - stepHeightRatio)) * 0.5f;
+			float _middle = _upperLimit + (colliderHeight * targetTransform.localScale.x) * stepHeightRatio;
+			float _distanceToGo = _middle - _distance;
+
+			return targetTransform.up * ( _distanceToGo / Time.fixedDeltaTime );
 		}
 		
 		//Returns true if angle between controller and ground normal is too big (> slope limit), i.e. ground is too steep;
@@ -207,9 +212,19 @@ namespace Game.Entities.Character
 
 			return ( Vector3.Angle( Sensor.GetNormal(), targetTransform.up ) > slopeLimit );
 		}
+
+		public Vector3 GetGroundNormal()
+		{
+			return Sensor.GetNormal();
+		}
 		
 		#region Sets
 
+		public void SetVelocity( Vector3 velocity )
+		{
+			rigidbody.velocity = velocity + _currentGroundAdjustmentVelocity;
+		}
+		
 		//Set whether sensor range should be extended;
 		public void SetExtendSensorRange(bool _isExtended)
 		{

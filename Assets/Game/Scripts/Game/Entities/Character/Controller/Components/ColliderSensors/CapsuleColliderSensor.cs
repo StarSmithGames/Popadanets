@@ -1,7 +1,8 @@
 using UnityEngine;
 
-namespace Game.Entities.Character.Sensors
+namespace Game.Entities.Character
 {
+    [RequireComponent( typeof( CapsuleCollider ) )]
     public sealed class CapsuleColliderSensor : ColliderSensor
     {
         public override Collider Collider => CapsuleCollider;

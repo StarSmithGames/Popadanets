@@ -6,13 +6,12 @@ namespace Game.Entities.Character
 {
     public sealed class CharacterView : MonoBehaviour
     {
-        [Tooltip("Optional camera transform used for calculating movement direction. If assigned, character movement will take camera view into account.")]
-        public Transform CameraTransform;
-        
+        public CharacterAvatar Avatar;
+        [Space]
         public Animator Animator;
-        public CharacterController Controller;
-        
-        public CharacterWalkerController.Settings ControllerSettings;
+        [Space]
+        public CharacterController3D.Settings ControllerSettings;
+        public TurnController.Settings TurnSettings;
 
         private CharacterViewModel _viewModel;
 

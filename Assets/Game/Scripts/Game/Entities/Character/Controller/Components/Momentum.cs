@@ -10,8 +10,6 @@ namespace Game.Entities.Character
 
         private Transform _transform;
         
-        public Momentum(){}
-        
         public Momentum( Transform transform )
         {
             _transform = transform ?? throw new ArgumentNullException( nameof(transform) );

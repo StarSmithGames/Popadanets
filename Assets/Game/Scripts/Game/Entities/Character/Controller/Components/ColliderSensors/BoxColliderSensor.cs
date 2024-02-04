@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Game.Entities.Character.Sensors
+namespace Game.Entities.Character
 {
     public sealed class BoxColliderSensor : ColliderSensor
     {
