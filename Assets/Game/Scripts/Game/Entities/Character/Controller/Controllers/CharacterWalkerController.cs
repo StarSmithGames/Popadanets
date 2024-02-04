@@ -1,70 +1,48 @@
 using CMF;
+using System;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace Game.Entities.Character
 {
-    public sealed partial class CharacterWalkerController : MonoBehaviour, IController
+    public sealed class CharacterWalkerController : IController
     {
 	    //Returns 'true' if controller is grounded (or sliding down a slope);
 	    public bool IsGrounded => _currentControllerState == ControllerState.Grounded || _currentControllerState == ControllerState.Sliding;
 	    public bool IsSliding => _currentControllerState == ControllerState.Sliding;
-	    
-	    public ColliderSensor colliderSensor;
-	    public CeilingDetector ceilingDetector;
-	    public Transform targetTransform;
 
-		//Movement speed;
-		public float movementSpeed = 7f;
-
-		//How fast the controller can change direction while in the air;
-		//Higher values result in more air control;
-		public float airControlRate = 2f;
-
-		//Jump speed;
-		public float jumpSpeed = 10f;
-
-		//Jump duration variables;
-		public float jumpDuration = 0.2f;
-		float currentJumpStartTime = 0f;
-
-		//'AirFriction' determines how fast the controller loses its momentum while in the air;
-		//'GroundFriction' is used instead, if the controller is grounded;
-		public float airFriction = 0.5f;
-		public float groundFriction = 100f;
-
-		//Current momentum;
-		protected Vector3 momentum = Vector3.zero;
+		private float currentJumpStartTime = 0f;
 
 		//Saved velocity from last frame;
-		Vector3 _cachedVelocity = Vector3.zero;
+		private Vector3 _cachedVelocity = Vector3.zero;
 
 		//Saved horizontal movement velocity from last frame;
-		Vector3 _cachedMovementVelocity = Vector3.zero;
-
-		//Amount of downward gravity;
-		public float gravity = 30f;
-		[Tooltip("How fast the character will slide down steep slopes.")]
-		public float slideGravity = 5f;
-		
-		[Tooltip("Whether to calculate and apply momentum relative to the controller's transform.")]
-		public bool useLocalMomentum = false;
+		private Vector3 _cachedMovementVelocity = Vector3.zero;
 
 		//Enum describing basic controller states; 
-		ControllerState _currentControllerState = ControllerState.Falling;
+		private ControllerState _currentControllerState = ControllerState.Falling;
 
-		[Tooltip("Optional camera transform used for calculating movement direction. If assigned, character movement will take camera view into account.")]
-		public Transform cameraTransform;
-
+		private Momentum _momentum;
 		private ControllerStateMachine _controllerStateMachine;
 		
-		private Vector3 _inputMovement;
+		private Vector3 _movementDirection;
 		//Current upwards (or downwards) velocity necessary to keep the correct distance to the ground;
 		private Vector3 _currentGroundAdjustmentVelocity = Vector3.zero;
+
+		private Settings _settings;
+		private Transform _transform;
 		
-        public void FixedTick( Vector3 input )
+		public CharacterWalkerController(
+			Settings settings,
+			Transform transform
+			)
+		{
+			_settings = settings ?? throw new ArgumentNullException( nameof(settings) );
+			_transform = transform ?? throw new ArgumentNullException( nameof(transform) );
+		}
+		
+        public void FixedTick( Vector3 movementDirection )
         {
-	        _inputMovement = input;
+	        _movementDirection = movementDirection;
 			ControllerUpdate();
 		}
 
@@ -75,9 +53,9 @@ namespace Game.Entities.Character
 			//Reset ground adjustment velocity;
 			_currentGroundAdjustmentVelocity = Vector3.zero;
 			//Check if mover is grounded;
-			colliderSensor.CheckForGround();
+			_settings.colliderSensor.CheckForGround();
 			//Set new ground adjustment velocity for the next frame;
-			_currentGroundAdjustmentVelocity = targetTransform.up * ( colliderSensor.GetGroundAdjustmentDistance() / Time.fixedDeltaTime );
+			_currentGroundAdjustmentVelocity = _transform.up * ( _settings.colliderSensor.GetGroundAdjustmentDistance() / Time.fixedDeltaTime );
 
 			//Determine controller state;
 			_currentControllerState = DetermineControllerState();
@@ -94,19 +72,19 @@ namespace Game.Entities.Character
 				_velocity = CalculateMovementVelocity();
 			
 			//If local momentum is used, transform momentum into world space first;
-			Vector3 _worldMomentum = momentum;
-			if(useLocalMomentum)
-				_worldMomentum = targetTransform.localToWorldMatrix * momentum;
+			Vector3 _worldMomentum = _momentum.GetMomentum();
+			if ( _settings.useLocalMomentum )
+				_worldMomentum = _transform.localToWorldMatrix * _momentum.GetMomentum();
 
 			//Add current momentum to velocity;
 			_velocity += _worldMomentum;
 			
 			//If player is grounded or sliding on a slope, extend mover's sensor range;
 			//This enables the player to walk up/down stairs and slopes without losing ground contact;
-			colliderSensor.SetExtendSensorRange(IsGrounded);
+			_settings.colliderSensor.SetExtendSensorRange(IsGrounded);
 
 			//Set mover velocity;		
-			colliderSensor.rigidbody.velocity = _velocity + _currentGroundAdjustmentVelocity;
+			_settings.colliderSensor.rigidbody.velocity = _velocity + _currentGroundAdjustmentVelocity;
 
 			//Store velocity for next frame;
 			_cachedVelocity = _velocity;
@@ -115,143 +93,131 @@ namespace Game.Entities.Character
 			_cachedMovementVelocity = CalculateMovementVelocity();
 
 			//Reset ceiling detector, if one is attached to this gameobject;
-			if(ceilingDetector != null)
-				ceilingDetector.ResetFlags();
+			if ( _settings.ceilingDetector != null )
+				_settings.ceilingDetector.ResetFlags();
 		}
 		
-		//Calculate and return movement velocity based on player input, controller state, ground normal [...];
-		private Vector3 CalculateMovementVelocity()
-		{
-			//Calculate (normalized) movement direction;
-			Vector3 _velocity = CalculateMovementDirection();
-
-			//Multiply (normalized) velocity with movement speed;
-			_velocity *= movementSpeed;
-
-			return _velocity;
-			
-			//Calculate and return movement direction based on player input;
-			//This function can be overridden by inheriting scripts to implement different player controls;
-			Vector3 CalculateMovementDirection()
-			{
-				Vector3 _velocity = Vector3.zero;
-
-				//If no camera transform has been assigned, use the character's transform axes to calculate the movement direction;
-				if(cameraTransform == null)
-				{
-					_velocity += targetTransform.right * _inputMovement.x;
-					_velocity += targetTransform.forward * _inputMovement.z;
-				}
-				else
-				{
-					//If a camera transform has been assigned, use the assigned transform's axes for movement direction;
-					//Project movement direction so movement stays parallel to the ground;
-					_velocity += Vector3.ProjectOnPlane(cameraTransform.right, targetTransform.up).normalized * _inputMovement.x;
-					_velocity += Vector3.ProjectOnPlane(cameraTransform.forward, targetTransform.up).normalized * _inputMovement.z;
-				}
-
-				//If necessary, clamp movement vector to magnitude of 1f;
-				if(_velocity.magnitude > 1f)
-					_velocity.Normalize();
-
-				return _velocity;
-			}
-		}
+		private Vector3 CalculateMovementVelocity() => _movementDirection * _settings.movementSpeed;
 
 		//Determine current controller state based on current momentum and whether the controller is grounded (or not);
 		//Handle state transitions;
 		private ControllerState DetermineControllerState()
 		{
 			//Check if vertical momentum is pointing upwards;
-			bool _isRising = IsRisingOrFalling() && (VectorMath.GetDotProduct(GetMomentum(), targetTransform.up) > 0f);
+			bool _isRising = _momentum.IsRisingOrFalling() && ( VectorMath.GetDotProduct( _momentum.GetMomentum(), _transform.up ) > 0f );
 			//Check if controller is sliding;
-			bool _isSliding = colliderSensor.IsGrounded && colliderSensor.IsGroundTooSteep();
-			
+			bool _isSliding = _settings.colliderSensor.IsGrounded && _settings.colliderSensor.IsGroundTooSteep();
+
 			//Grounded;
-			if(_currentControllerState == ControllerState.Grounded)
+			if ( _currentControllerState == ControllerState.Grounded )
 			{
-				if(_isRising){
+				if ( _isRising )
+				{
 					OnGroundContactLost();
 					return ControllerState.Rising;
 				}
-				if(!colliderSensor.IsGrounded){
+
+				if ( !_settings.colliderSensor.IsGrounded )
+				{
 					OnGroundContactLost();
 					return ControllerState.Falling;
 				}
-				if(_isSliding){
+
+				if ( _isSliding )
+				{
 					OnGroundContactLost();
 					return ControllerState.Sliding;
 				}
+
 				return ControllerState.Grounded;
 			}
 
 			//Falling;
-			if(_currentControllerState == ControllerState.Falling)
+			if ( _currentControllerState == ControllerState.Falling )
 			{
-				if(_isRising){
+				if ( _isRising )
+				{
 					return ControllerState.Rising;
 				}
-				if(colliderSensor.IsGrounded && !_isSliding){
+
+				if ( _settings.colliderSensor.IsGrounded && !_isSliding )
+				{
 					OnGroundContactRegained();
 					return ControllerState.Grounded;
 				}
-				if(_isSliding){
+
+				if ( _isSliding )
+				{
 					return ControllerState.Sliding;
 				}
+
 				return ControllerState.Falling;
 			}
-			
+
 			//Sliding;
-			if(_currentControllerState == ControllerState.Sliding)
-			{	
-				if(_isRising){
+			if ( _currentControllerState == ControllerState.Sliding )
+			{
+				if ( _isRising )
+				{
 					OnGroundContactLost();
 					return ControllerState.Rising;
 				}
-				if(!colliderSensor.IsGrounded){
+
+				if ( !_settings.colliderSensor.IsGrounded )
+				{
 					OnGroundContactLost();
 					return ControllerState.Falling;
 				}
-				if(colliderSensor.IsGrounded && !_isSliding){
+
+				if ( _settings.colliderSensor.IsGrounded && !_isSliding )
+				{
 					OnGroundContactRegained();
 					return ControllerState.Grounded;
 				}
+
 				return ControllerState.Sliding;
 			}
 
 			//Rising;
-			if(_currentControllerState == ControllerState.Rising)
+			if ( _currentControllerState == ControllerState.Rising )
 			{
-				if(!_isRising){
-					if(colliderSensor.IsGrounded && !_isSliding){
+				if ( !_isRising )
+				{
+					if ( _settings.colliderSensor.IsGrounded && !_isSliding )
+					{
 						OnGroundContactRegained();
 						return ControllerState.Grounded;
 					}
-					if(_isSliding){
+
+					if ( _isSliding )
+					{
 						return ControllerState.Sliding;
 					}
-					if(!colliderSensor.IsGrounded){
+
+					if ( !_settings.colliderSensor.IsGrounded )
+					{
 						return ControllerState.Falling;
 					}
 				}
 
 				//If a ceiling detector has been attached to this gameobject, check for ceiling hits;
-				if(ceilingDetector != null)
+				if ( _settings.ceilingDetector != null )
 				{
-					if(ceilingDetector.HitCeiling())
+					if ( _settings.ceilingDetector.HitCeiling() )
 					{
 						OnCeilingContact();
 						return ControllerState.Falling;
 					}
 				}
+
 				return ControllerState.Rising;
 			}
 
 			//Jumping;
-			if(_currentControllerState == ControllerState.Jumping)
+			if ( _currentControllerState == ControllerState.Jumping )
 			{
 				//Check for jump timeout;
-				if((Time.time - currentJumpStartTime) > jumpDuration)
+				if ( ( Time.time - currentJumpStartTime ) > _settings.jumpDuration )
 					return ControllerState.Rising;
 
 				//Check if jump key was let go;
@@ -259,44 +225,47 @@ namespace Game.Entities.Character
 				// 	return ControllerState.Rising;
 
 				//If a ceiling detector has been attached to this gameobject, check for ceiling hits;
-				if(ceilingDetector != null)
+				if ( _settings.ceilingDetector != null )
 				{
-					if(ceilingDetector.HitCeiling())
+					if ( _settings.ceilingDetector.HitCeiling() )
 					{
 						OnCeilingContact();
 						return ControllerState.Falling;
 					}
 				}
+
 				return ControllerState.Jumping;
 			}
-			
+
 			return ControllerState.Falling;
 		}
 
-        //Apply friction to both vertical and horizontal momentum based on 'friction' and 'gravity';
+		//Apply friction to both vertical and horizontal momentum based on 'friction' and 'gravity';
 		//Handle movement in the air;
         //Handle sliding down steep slopes;
         private void HandleMomentum()
 		{
+			Vector3 momentum = _momentum.GetMomentum();
+			
 			//If local momentum is used, transform momentum into world coordinates first;
-			if(useLocalMomentum)
-				momentum = targetTransform.localToWorldMatrix * momentum;
-
+			if(_settings.useLocalMomentum)
+				momentum = _transform.localToWorldMatrix * momentum;
+			
 			Vector3 _verticalMomentum = Vector3.zero;
 			Vector3 _horizontalMomentum = Vector3.zero;
-
+			
 			//Split momentum into vertical and horizontal components;
-			if(momentum != Vector3.zero)
+			if ( momentum != Vector3.zero )
 			{
-				_verticalMomentum = VectorMath.ExtractDotVector(momentum, targetTransform.up);
+				_verticalMomentum = VectorMath.ExtractDotVector( momentum, _transform.up );
 				_horizontalMomentum = momentum - _verticalMomentum;
 			}
 
 			//Add gravity to vertical momentum;
-			_verticalMomentum -= targetTransform.up * gravity * Time.deltaTime;
+			_verticalMomentum -= _transform.up * _settings.gravity * Time.deltaTime;
 
 			//Remove any downward force if the controller is grounded;
-			if(_currentControllerState == ControllerState.Grounded && VectorMath.GetDotProduct(_verticalMomentum, targetTransform.up) < 0f)
+			if(_currentControllerState == ControllerState.Grounded && VectorMath.GetDotProduct(_verticalMomentum, _transform.up) < 0f)
 				_verticalMomentum = Vector3.zero;
 
 			//Manipulate momentum to steer controller in the air (if controller is not grounded or sliding);
@@ -305,7 +274,7 @@ namespace Game.Entities.Character
 				Vector3 _movementVelocity = CalculateMovementVelocity();
 
 				//If controller has received additional momentum from somewhere else;
-				if(_horizontalMomentum.magnitude > movementSpeed)
+				if(_horizontalMomentum.magnitude > _settings.movementSpeed)
 				{
 					//Prevent unwanted accumulation of speed in the direction of the current momentum;
 					if(VectorMath.GetDotProduct(_movementVelocity, _horizontalMomentum.normalized) > 0f)
@@ -313,14 +282,14 @@ namespace Game.Entities.Character
 					
 					//Lower air control slightly with a multiplier to add some 'weight' to any momentum applied to the controller;
 					float _airControlMultiplier = 0.25f;
-					_horizontalMomentum += _movementVelocity * Time.deltaTime * airControlRate * _airControlMultiplier;
+					_horizontalMomentum += _movementVelocity * Time.deltaTime * _settings.airControlRate * _airControlMultiplier;
 				}
 				//If controller has not received additional momentum;
 				else
 				{
 					//Clamp _horizontal velocity to prevent accumulation of speed;
-					_horizontalMomentum += _movementVelocity * Time.deltaTime * airControlRate;
-					_horizontalMomentum = Vector3.ClampMagnitude(_horizontalMomentum, movementSpeed);
+					_horizontalMomentum += _movementVelocity * Time.deltaTime * _settings.airControlRate;
+					_horizontalMomentum = Vector3.ClampMagnitude(_horizontalMomentum, _settings.movementSpeed);
 				}
 			}
 
@@ -328,7 +297,7 @@ namespace Game.Entities.Character
 			if(_currentControllerState == ControllerState.Sliding)
 			{
 				//Calculate vector pointing away from slope;
-				Vector3 _pointDownVector = Vector3.ProjectOnPlane(colliderSensor.Sensor.GetNormal(), targetTransform.up).normalized;
+				Vector3 _pointDownVector = Vector3.ProjectOnPlane(_settings.colliderSensor.Sensor.GetNormal(), _transform.up).normalized;
 
 				//Calculate movement velocity;
 				Vector3 _slopeMovementVelocity = CalculateMovementVelocity();
@@ -341,37 +310,39 @@ namespace Game.Entities.Character
 
 			//Apply friction to horizontal momentum based on whether the controller is grounded;
 			if(_currentControllerState == ControllerState.Grounded)
-				_horizontalMomentum = VectorMath.IncrementVectorTowardTargetVector(_horizontalMomentum, groundFriction, Time.deltaTime, Vector3.zero);
+				_horizontalMomentum = VectorMath.IncrementVectorTowardTargetVector(_horizontalMomentum, _settings.groundFriction, Time.deltaTime, Vector3.zero);
 			else
-				_horizontalMomentum = VectorMath.IncrementVectorTowardTargetVector(_horizontalMomentum, airFriction, Time.deltaTime, Vector3.zero); 
+				_horizontalMomentum = VectorMath.IncrementVectorTowardTargetVector(_horizontalMomentum, _settings.airFriction, Time.deltaTime, Vector3.zero); 
 
 			//Add horizontal and vertical momentum back together;
-			momentum = _horizontalMomentum + _verticalMomentum;
+			_momentum.SetMomentum( _horizontalMomentum + _verticalMomentum );
 
 			//Additional momentum calculations for sliding;
 			if(_currentControllerState == ControllerState.Sliding)
 			{
 				//Project the current momentum onto the current ground normal if the controller is sliding down a slope;
-				momentum = Vector3.ProjectOnPlane(momentum, colliderSensor.Sensor.GetNormal());
+				momentum = Vector3.ProjectOnPlane(momentum, _settings.colliderSensor.Sensor.GetNormal());
 
 				//Remove any upwards momentum when sliding;
-				if(VectorMath.GetDotProduct(momentum, targetTransform.up) > 0f)
-					momentum = VectorMath.RemoveDotVector(momentum, targetTransform.up);
+				if(VectorMath.GetDotProduct(momentum, _transform.up) > 0f)
+					momentum = VectorMath.RemoveDotVector(momentum, _transform.up);
 
 				//Apply additional slide gravity;
-				Vector3 _slideDirection = Vector3.ProjectOnPlane(-targetTransform.up, colliderSensor.Sensor.GetNormal()).normalized;
-				momentum += _slideDirection * slideGravity * Time.deltaTime;
+				Vector3 _slideDirection = Vector3.ProjectOnPlane(-_transform.up, _settings.colliderSensor.Sensor.GetNormal()).normalized;
+				_momentum += _slideDirection * _settings.slideGravity * Time.deltaTime;
 			}
 			
 			//If controller is jumping, override vertical velocity with jumpSpeed;
 			if(_currentControllerState == ControllerState.Jumping)
 			{
-				momentum = VectorMath.RemoveDotVector(momentum, targetTransform.up);
-				momentum += targetTransform.up * jumpSpeed;
+				momentum = VectorMath.RemoveDotVector(momentum, _transform.up);
+				momentum += _transform.up * _settings.jumpSpeed;
 			}
 
-			if(useLocalMomentum)
-				momentum = targetTransform.worldToLocalMatrix * momentum;
+			if(_settings.useLocalMomentum)
+				momentum = _transform.worldToLocalMatrix * momentum;
+			
+			_momentum.SetMomentum( momentum );
 		}
         
         //Check if player has initiated a jump;
@@ -394,33 +365,35 @@ namespace Game.Entities.Character
 		//This function is called when the player has initiated a jump;
 		private void OnJumpStart()
 		{
-			//If local momentum is used, transform momentum into world coordinates first;
-			if(useLocalMomentum)
-				momentum = targetTransform.localToWorldMatrix * momentum;
-
-			//Add jump force to momentum;
-			momentum += targetTransform.up * jumpSpeed;
-
-			//Set jump start time;
-			currentJumpStartTime = Time.time;
-
-            //Lock jump input until jump key is released again;
-    //         jumpInputIsLocked = true;
-    //
-    //         //Call event;
-    //         if (OnJump != null)
-				// OnJump(momentum);
-
-			if(useLocalMomentum)
-				momentum = targetTransform.worldToLocalMatrix * momentum;
+			// //If local momentum is used, transform momentum into world coordinates first;
+			// if(useLocalMomentum)
+			// 	momentum = targetTransform.localToWorldMatrix * momentum;
+   //
+			// //Add jump force to momentum;
+			// momentum += targetTransform.up * jumpSpeed;
+   //
+			// //Set jump start time;
+			// currentJumpStartTime = Time.time;
+   //
+   //          //Lock jump input until jump key is released again;
+   //          jumpInputIsLocked = true;
+   //  
+   //          //Call event;
+   //          if (OnJump != null)
+			// 	OnJump(momentum);
+   //
+			// if(useLocalMomentum)
+			// 	momentum = targetTransform.worldToLocalMatrix * momentum;
 		}
 
 		//This function is called when the controller has lost ground contact, i.e. is either falling or rising, or generally in the air;
 		private void OnGroundContactLost()
 		{
+			Vector3 momentum = _momentum.GetMomentum();
+			
 			//If local momentum is used, transform momentum into world coordinates first;
-			if(useLocalMomentum)
-				momentum = targetTransform.localToWorldMatrix * momentum;
+			if(_settings.useLocalMomentum)
+				momentum = _transform.localToWorldMatrix * momentum;
 
 			//Get current movement velocity;
 			Vector3 _velocity = GetMovementVelocity();
@@ -444,8 +417,10 @@ namespace Game.Entities.Character
 			//Add movement velocity to momentum;
 			momentum += _velocity;
 
-			if(useLocalMomentum)
-				momentum = targetTransform.worldToLocalMatrix * momentum;
+			if(_settings.useLocalMomentum)
+				momentum = _transform.worldToLocalMatrix * momentum;
+			
+			_momentum.SetMomentum( momentum );
 		}
 
 		//This function is called when the controller has landed on a surface after being in the air;
@@ -467,72 +442,57 @@ namespace Game.Entities.Character
 		//This function is called when the controller has collided with a ceiling while jumping or moving upwards;
 		private void OnCeilingContact()
 		{
+			Vector3 momentum = _momentum.GetMomentum();
+			
 			//If local momentum is used, transform momentum into world coordinates first;
-			if(useLocalMomentum)
-				momentum = targetTransform.localToWorldMatrix * momentum;
+			if(_settings.useLocalMomentum)
+				momentum = _transform.localToWorldMatrix * momentum;
 
 			//Remove all vertical parts of momentum;
-			momentum = VectorMath.RemoveDotVector(momentum, targetTransform.up);
+			momentum = VectorMath.RemoveDotVector(momentum, _transform.up);
 
-			if(useLocalMomentum)
-				momentum = targetTransform.worldToLocalMatrix * momentum;
+			if(_settings.useLocalMomentum)
+				momentum = _transform.worldToLocalMatrix * momentum;
+			
+			_momentum.SetMomentum( momentum );
 		}
-
-		//Helper functions;
-
-		//Returns 'true' if vertical momentum is above a small threshold;
-		private bool IsRisingOrFalling()
-		{
-			//Calculate current vertical momentum;
-			Vector3 _verticalMomentum = VectorMath.ExtractDotVector( GetMomentum(), targetTransform.up );
-
-			//Setup threshold to check against;
-			//For most applications, a value of '0.001f' is recommended;
-			float _limit = 0.001f;
-
-			//Return true if vertical momentum is above '_limit';
-			return ( _verticalMomentum.magnitude > _limit );
-		}
-
+		
 		
 		//Get last frame's velocity;
 		public Vector3 GetVelocity() => _cachedVelocity;
 
 		//Get last frame's movement velocity (momentum is ignored);
 		public Vector3 GetMovementVelocity() => _cachedMovementVelocity;
-    }
+		
+		[ System.Serializable ]
+		public sealed class Settings
+		{
+			public ColliderSensor colliderSensor;
+			public CeilingDetector ceilingDetector;
 
-    public sealed partial class CharacterWalkerController
-    {
-	    //Add momentum to controller;
-	    public void AddMomentum( Vector3 _momentum )
-	    {
-		    if ( useLocalMomentum )
-			    momentum = targetTransform.localToWorldMatrix * momentum;
+			//Movement speed;
+			public float movementSpeed = 7f;
 
-		    momentum += _momentum;
+			//How fast the controller can change direction while in the air;
+			//Higher values result in more air control;
+			public float airControlRate = 2f;
 
-		    if ( useLocalMomentum )
-			    momentum = targetTransform.worldToLocalMatrix * momentum;
-	    }
-	    
-	    //Get current momentum;
-	    public Vector3 GetMomentum()
-	    {
-		    Vector3 _worldMomentum = momentum;
-		    if(useLocalMomentum)
-			    _worldMomentum = targetTransform.localToWorldMatrix * momentum;
-
-		    return _worldMomentum;
-	    }
-
-	    //Set controller momentum directly;
-	    public void SetMomentum( Vector3 _newMomentum )
-	    {
-		    if ( useLocalMomentum )
-			    momentum = targetTransform.worldToLocalMatrix * _newMomentum;
-		    else
-			    momentum = _newMomentum;
-	    }
+			//Jump speed;
+			public float jumpSpeed = 10f;
+			public float jumpDuration = 0.2f;
+			
+			//'AirFriction' determines how fast the controller loses its momentum while in the air;
+			//'GroundFriction' is used instead, if the controller is grounded;
+			public float airFriction = 0.5f;
+			public float groundFriction = 100f;
+			
+			//Amount of downward gravity;
+			public float gravity = 30f;
+			[Tooltip("How fast the character will slide down steep slopes.")]
+			public float slideGravity = 5f;
+		
+			[Tooltip("Whether to calculate and apply momentum relative to the controller's transform.")]
+			public bool useLocalMomentum = false;
+		}
     }
 }
