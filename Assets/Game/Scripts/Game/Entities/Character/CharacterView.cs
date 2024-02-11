@@ -8,10 +8,9 @@ namespace Game.Entities.Character
     {
         public CharacterAvatar Avatar;
         [Space]
-        public Animator Animator;
-        [Space]
         public CharacterController3D.Settings ControllerSettings;
         public TurnController.Settings TurnSettings;
+        public CharacterAnimator.Settings AnimatorSettings;
 
         private CharacterViewModel _viewModel;
 

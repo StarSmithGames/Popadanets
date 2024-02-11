@@ -28,7 +28,7 @@ namespace Game.Entities.Character
 
             _characterController = new( _view.ControllerSettings, _view.Avatar.Root );
             _turnController = new( _view.TurnSettings, _characterController, _view.Avatar.Root, _view.Avatar.RootModel );
-            _characterAnimator = new( _view.Animator, _characterController );
+            _characterAnimator = new( _view.AnimatorSettings, _view.Avatar, _characterController );
 
             _tickCancellation = new();
             Tick().Forget();
@@ -58,7 +58,7 @@ namespace Game.Entities.Character
             while ( !isCanceled )
             {
                 _characterAnimator.Tick();
-
+                
                 isCanceled = await UniTask.Yield( PlayerLoopTiming.Update, _tickCancellation.Token ).SuppressCancellationThrow();
             }
         }

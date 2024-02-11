@@ -14,16 +14,21 @@ namespace Game.Entities.Character
         private int _forwardHash;
         private int _verticalHash;
         private int _isLandedHash;
+
+        private Animator _animator;
         
-        private readonly Animator _animator;
+        private readonly Settings _settings;
+        private readonly CharacterAvatar _avatar;
         private readonly IController _controller;
         
         public CharacterAnimator(
-            Animator animator,
+            Settings settings,
+            CharacterAvatar avatar,
             IController controller
             )
         {
-            _animator = animator ?? throw new ArgumentNullException( nameof(animator) );
+            _settings = settings ?? throw new ArgumentNullException( nameof(settings) );
+            _avatar = avatar ?? throw new ArgumentNullException( nameof(avatar) );
             _controller = controller ?? throw new ArgumentNullException( nameof(controller) );
             
             _isIdleHash = Animator.StringToHash(AnimatorParams.IS_IDLE);
@@ -33,6 +38,7 @@ namespace Game.Entities.Character
             _verticalHash = Animator.StringToHash(AnimatorParams.VERTICAL);
             _isLandedHash = Animator.StringToHash(AnimatorParams.IS_LANDED);
 
+            _animator = _settings.Animator;
             _animationsStateMachine = new();
 
             _idleState = new IdleState( _animationsStateMachine );
@@ -47,8 +53,8 @@ namespace Game.Entities.Character
 
              bool isIdle = velocity.magnitude == 0;
             
-             _animator.SetFloat( _forwardHash, velocity.magnitude );
-             _animator.SetFloat( _verticalHash, velocity.y );
+             // _animator.SetFloat( _forwardHash, velocity.magnitude );
+             // _animator.SetFloat( _verticalHash, velocity.y );
             //animator.SetFloat("HorizontalSpeed", Mathf.Clamp(controller.CalculateAngleToDesination(), -90, 90) / 90);
 
              _animator.SetBool( _isIdleHash, isIdle );
@@ -59,7 +65,14 @@ namespace Game.Entities.Character
 
         private void ControllerLandedHandler( Vector3 _ )
         {
-            _animator.SetTrigger( _isLandedHash );
+            // _animator.SetTrigger( _isLandedHash );
+        }
+        
+        [ System.Serializable ]
+        public sealed class Settings
+        {
+            public Animator Animator;
+            public float DistanceToGrounForLegs = 2f;
         }
     }
 }

@@ -110,11 +110,15 @@ namespace Game.Entities.Character
 
 		private void CollisionEnterHandler( Collision _collision )
 		{
+			Debug.LogError( "CollisionEnterHandler" );
+			
 			CheckCollisionAngles( _collision );
 		}
 
 		private void CollisionStayHandler( Collision _collision )
 		{
+			Debug.LogError( "CollisionStayHandler" );
+			
 			CheckCollisionAngles( _collision );
 		}
 
